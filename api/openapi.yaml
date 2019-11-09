@@ -1,0 +1,285 @@
+openapi: 3.0.0
+info:
+  title: Bot Server API
+  description: This is a bot API to let bots battle
+  contact:
+    email: szederjesiarnold@gmail.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+servers:
+- url: /
+tags:
+- name: connect
+  description: Connect to the game
+- name: play
+  description: Play the game
+paths:
+  /hello:
+    post:
+      tags:
+      - connect
+      description: Initiate connection to the game
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HelloRequest'
+        required: true
+      responses:
+        200:
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloResponse'
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      callbacks:
+        event:
+          '{$request.body#/eventCallback}':
+            post:
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                          - startGame
+                          - roundFinished
+                          - gameFinished
+                        body:
+                          oneOf:
+                          - $ref: '#/components/schemas/StartGame'
+                          - $ref: '#/components/schemas/RoundFinished'
+                          - $ref: '#/components/schemas/GameFinished'
+              responses:
+                204:
+                  description: No content
+  /play:
+    post:
+      tags:
+      - play
+      description: Play your "cards"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayRequest'
+        required: true
+      responses:
+        200:
+          description: Successful request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayResponse'
+        400:
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    HelloRequest:
+      required:
+      - eventCallback
+      - game
+      type: object
+      properties:
+        game:
+          $ref: '#/components/schemas/HelloRequest_game'
+        playerName:
+          type: string
+          description: If name is not provided, server will assign a name
+        eventCallback:
+          type: string
+          description: To receive notifications from server
+          format: uri
+    PlayRequest:
+      required:
+      - gameId
+      - move
+      - playerId
+      - round
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        playerId:
+          type: string
+          format: uuid
+        round:
+          type: integer
+          example: 1
+        move:
+          type: object
+          description: Game specific
+          oneOf:
+          - $ref: '#/components/schemas/RockPaperScissorsMove'
+    HelloResponse:
+      required:
+      - gameId
+      - player
+      - rounds
+      type: object
+      properties:
+        gameId:
+          type: string
+        player:
+          $ref: '#/components/schemas/HelloResponse_player'
+        rounds:
+          type: integer
+          description: Number of rounds to play
+          example: 5
+    PlayResponse:
+      required:
+      - playersYetToMakeMove
+      - round
+      type: object
+      properties:
+        round:
+          type: integer
+        playersYetToMakeMove:
+          type: array
+          items:
+            type: string
+    StartGame:
+      required:
+      - gameId
+      - nextRound
+      - players
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        players:
+          type: array
+          example:
+          - John
+          - Jack
+          items:
+            type: string
+        nextRound:
+          type: integer
+          example: 1
+    RoundFinished:
+      required:
+      - currentRound
+      - gameId
+      - nextRound
+      - roundResult
+      - score
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        currentRound:
+          type: integer
+          example: 3
+        roundResult:
+          $ref: '#/components/schemas/RoundFinished_roundResult'
+        nextRound:
+          type: integer
+          example: 4
+        score:
+          type: string
+          description: Score after the current round
+          example: 1-2
+    GameFinished:
+      required:
+      - gameId
+      - gameResult
+      - score
+      type: object
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        score:
+          type: string
+          example: 3-1
+        gameResult:
+          $ref: '#/components/schemas/GameFinished_gameResult'
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+    RockPaperScissorsMove:
+      type: object
+      properties:
+        value:
+          type: string
+          enum:
+          - rock
+          - paper
+          - scissors
+    HelloRequest_game:
+      required:
+      - connectionToken
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+          example: rps
+          enum:
+          - rps
+        connectionToken:
+          type: string
+          description: Token to help players connect to the same game instance
+        numberOfTotalPlayers:
+          type: integer
+          example: 2
+    HelloResponse_player:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    RoundFinished_roundResult:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+          example: win
+          enum:
+          - draw
+          - win
+          - lose
+        winner:
+          type: string
+          example: Jack
+        moves:
+          type: object
+          description: Map with key being player name and value being move
+    GameFinished_gameResult:
+      type: object
+      properties:
+        status:
+          type: string
+          example: win
+          enum:
+          - draw
+          - win
+          - lose
+        winner:
+          type: string
+          example: Jack
