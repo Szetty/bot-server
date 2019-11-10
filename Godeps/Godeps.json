@@ -1,0 +1,39 @@
+{
+	"ImportPath": "botServer",
+	"GoVersion": "go1.13",
+	"GodepVersion": "v80",
+	"Deps": [
+		{
+			"ImportPath": "github.com/google/logger",
+			"Comment": "v1.0.1-4-g03bdf7b",
+			"Rev": "03bdf7bcb2c4d98c8fdbf62f1473fb1303ca1c1d"
+		},
+		{
+			"ImportPath": "github.com/google/uuid",
+			"Comment": "v1.1.1-7-gc2e93f3",
+			"Rev": "c2e93f3ae59f2904160ceaab466009f965df46d6"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Comment": "v1.7.3-11-gf395758",
+			"Rev": "f395758b854c4efa789b8c1e9b73479704c548cb"
+		},
+		{
+			"ImportPath": "github.com/pkg/errors",
+			"Comment": "v0.8.1-27-g7f95ac1",
+			"Rev": "7f95ac13edff643b8ce5398b6ccab125f8a20c1a"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/windows",
+			"Rev": "c1f44814a5cd81a6d1cb589ef1e528bc5d305e07"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/windows/registry",
+			"Rev": "c1f44814a5cd81a6d1cb589ef1e528bc5d305e07"
+		},
+		{
+			"ImportPath": "golang.org/x/sys/windows/svc/eventlog",
+			"Rev": "c1f44814a5cd81a6d1cb589ef1e528bc5d305e07"
+		}
+	]
+}

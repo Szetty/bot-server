@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	logger.Init("Bot Server", false, true, os.Stdout)
+	logger.Init("Bot Server", false, false, os.Stdout)
 	logger.Infof("Server started")
 
 	ConnectAPIService := web.NewConnectAPIService()
