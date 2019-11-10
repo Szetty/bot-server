@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/google/logger"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"net/http"
 	"net/url"
@@ -16,7 +17,8 @@ import (
 
 // Subscriber represents an entity that will be notified with events
 type Subscriber struct {
-	Callback *url.URL
+	Callback      *url.URL
+	WebsocketConn *websocket.Conn
 }
 
 // StartGame is an intermediate structure for the StartGame event
@@ -109,19 +111,34 @@ func PublishGameFinished(gameFinished GameFinished) {
 
 func publish(subscriber Subscriber, event model.Event) {
 	time.Sleep(time.Second)
+	if subscriber.WebsocketConn != nil {
+		publishUsingWebsocket(subscriber.WebsocketConn, event)
+		return
+	}
+	publishUsingHTTP(subscriber.Callback.String(), event)
+}
+
+func publishUsingHTTP(callback string, event interface{}) {
 	body, err := json.Marshal(event)
 	if err != nil {
 		msg := fmt.Sprintf("publishing: could not encode %+v", event)
 		logger.Error(errors.Wrap(err, msg))
 	}
-
-	resp, err := http.Post(subscriber.Callback.String(), "application/json", bytes.NewReader(body))
+	resp, err := http.Post(callback, "application/json", bytes.NewReader(body))
 	if err != nil {
-		logger.Error(errors.Wrap(err, "publishing: request failed"))
+		logger.Error(errors.Wrap(err, "publishing through HTTP failed"))
 		return
 	}
 	if resp.StatusCode != 204 {
 		msg := fmt.Sprintf("expecting status code 204 (No content) but got %d", resp.StatusCode)
 		logger.Warning(errors.New("publishing: " + msg))
+	}
+}
+
+func publishUsingWebsocket(conn *websocket.Conn, event interface{}) {
+	err := conn.WriteJSON(event)
+	if err != nil {
+		logger.Error(errors.Wrap(err, "publishing through websocket failed"))
+		return
 	}
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"net/url"
 	"strconv"
 )
@@ -42,6 +43,7 @@ type Player struct {
 	ID            uuid.UUID
 	Name          string
 	EventCallback *url.URL
+	WebsocketConn *websocket.Conn
 	currentMove   interface{}
 	score         int
 }

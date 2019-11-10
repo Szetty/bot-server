@@ -13,6 +13,8 @@ package web
 import (
 	"botServer/core"
 	"botServer/web/model"
+	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"net/url"
 )
@@ -56,4 +58,21 @@ func (s *ConnectAPIService) HelloPost(helloRequest model.HelloRequest) (model.He
 			Name: connectResponse.Player.Name,
 		},
 	}, nil
+}
+
+func (s *ConnectAPIService) SwitchToWs(request model.SwitchToWsRequest, conn *websocket.Conn) error {
+	gameID, err := uuid.Parse(request.GameID)
+	if err != nil {
+		return errors.Wrap(err, "could not switch to WS: invalid game id")
+	}
+	playerID, err := uuid.Parse(request.PlayerID)
+	if err != nil {
+		return errors.Wrap(err, "could not switch to WS: invalid player id")
+	}
+
+	err = core.RegisterWS(gameID, playerID, conn)
+	if err != nil {
+		return err
+	}
+	return nil
 }

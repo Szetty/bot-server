@@ -12,12 +12,14 @@ package web
 
 import (
 	"botServer/web/model"
+	"github.com/gorilla/websocket"
 	"net/http"
 )
 
 // ConnectAPIRouter is the router for the connect API
 type ConnectAPIRouter interface {
 	HelloPost(http.ResponseWriter, *http.Request)
+	SwitchToWs(http.ResponseWriter, *http.Request)
 }
 
 // PlayAPIRouter is the router for the play API
@@ -28,6 +30,7 @@ type PlayAPIRouter interface {
 // ConnectAPIServicer resolves the requests to the connect API
 type ConnectAPIServicer interface {
 	HelloPost(model.HelloRequest) (model.HelloResponse, error)
+	SwitchToWs(model.SwitchToWsRequest, *websocket.Conn) error
 }
 
 // PlayAPIServicer resolves the requests to the play API

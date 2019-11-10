@@ -41,3 +41,8 @@ type HelloResponsePlayer struct {
 	ID   string `json:"id,omitempty"`
 	Name string `json:"name,omitempty"`
 }
+
+type SwitchToWsRequest struct {
+	GameID   string `json:"gameId"`
+	PlayerID string `json:"playerId"`
+}

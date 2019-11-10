@@ -6,6 +6,7 @@ import (
 	"botServer/core/games"
 	"github.com/google/logger"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
@@ -45,6 +46,21 @@ func Connect(req ConnectRequest) (ConnectResponse, error) {
 		go notifyStartGame(g.players, g.id, g.currentRound)
 	}
 	return ConnectResponse{GameID: g.id, Player: *p, Rounds: g.totalRounds}, nil
+}
+
+func RegisterWS(gameId, playerId uuid.UUID, conn *websocket.Conn) error {
+	g, ok := gameIDToGame[gameId]
+	if !ok {
+		err := errors.New("game id is not correct")
+		return errors.Wrap(err, "could not register ws")
+	}
+	p, ok := g.players[playerId]
+	if !ok {
+		err := errors.New("player id is not correct")
+		return errors.Wrap(err, "could not register ws")
+	}
+	p.WebsocketConn = conn
+	return nil
 }
 
 // Play processes a given player's move in a given round in a specific game
@@ -182,7 +198,10 @@ func notifyStartGame(players map[uuid.UUID]*Player, gameID uuid.UUID, nextRound 
 	var subscribers []events.Subscriber
 	var playerNames []string
 	for _, player := range players {
-		subscribers = append(subscribers, events.Subscriber{Callback: player.EventCallback})
+		subscribers = append(subscribers, events.Subscriber{
+			Callback:      player.EventCallback,
+			WebsocketConn: player.WebsocketConn,
+		})
 		playerNames = append(playerNames, player.Name)
 	}
 	events.PublishStartGame(events.StartGame{
@@ -233,7 +252,8 @@ func computePlayerResults(players map[uuid.UUID]*Player, result games.RoundResul
 			Status: string(playerResult.Status),
 			Score:  strings.Join(scores, "-"),
 			Subscriber: events.Subscriber{
-				Callback: players[playerResult.ID].EventCallback,
+				Callback:      players[playerResult.ID].EventCallback,
+				WebsocketConn: players[playerResult.ID].WebsocketConn,
 			},
 		})
 	}
