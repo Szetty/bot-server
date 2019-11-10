@@ -13,6 +13,7 @@ type ConnectRequest struct {
 	NoOfPlayers   int
 	PlayerName    string
 	EventCallback *url.URL
+	TotalRounds   int
 }
 
 // ConnectResponse is the output for the Connect operation in the core

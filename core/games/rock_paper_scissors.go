@@ -7,7 +7,7 @@ import (
 
 const (
 	defaultNumberOfPlayers = 2
-	defaultNumberOfRounds  = 3
+	defaultNumberOfRounds  = 5
 )
 
 var (

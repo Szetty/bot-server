@@ -43,6 +43,7 @@ func (s *ConnectAPIService) HelloPost(helloRequest model.HelloRequest) (model.He
 		NoOfPlayers:   helloRequest.Game.NumberOfTotalPlayers,
 		PlayerName:    helloRequest.PlayerName,
 		EventCallback: callbackURL,
+		TotalRounds:   helloRequest.Game.TotalRounds,
 	})
 	if err != nil {
 		return model.HelloResponse{}, err

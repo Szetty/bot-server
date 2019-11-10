@@ -25,6 +25,7 @@ type HelloRequestGame struct {
 	// Token to help players connect to the same game instance
 	ConnectionToken      string `json:"connectionToken"`
 	NumberOfTotalPlayers int    `json:"numberOfTotalPlayers,omitempty"`
+	TotalRounds          int    `json:"totalRounds,omitempty"`
 }
 
 // HelloResponse is the HTTP response from the hello endpoint

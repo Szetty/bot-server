@@ -28,7 +28,7 @@ type game struct {
 
 // Connect tries to connect a new user to a game specified by the token
 func Connect(req ConnectRequest) (ConnectResponse, error) {
-	g, err := getOrCreateGame(req.Token, req.GameName, req.NoOfPlayers)
+	g, err := getOrCreateGame(req.Token, req.GameName, req.NoOfPlayers, req.TotalRounds)
 	if err != nil {
 		return ConnectResponse{}, errors.Wrap(err, "could not connect to game")
 	}
@@ -83,7 +83,7 @@ func Play(req PlayRequest) (PlayResponse, error) {
 	}, nil
 }
 
-func getOrCreateGame(token, gameName string, noOfPlayers int) (*game, error) {
+func getOrCreateGame(token, gameName string, noOfPlayers, totalRounds int) (*game, error) {
 	if token == "" {
 		return nil, errors.New("token is empty")
 	}
@@ -97,6 +97,10 @@ func getOrCreateGame(token, gameName string, noOfPlayers int) (*game, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create new game")
 		}
+
+		if totalRounds <= 0 {
+			totalRounds = gameType.GetDefaultNumberOfRounds()
+		}
 		gameID := uuid.New()
 		tokenToGameID[token] = gameID
 		gameIDToGame[gameID] = &game{
@@ -105,7 +109,7 @@ func getOrCreateGame(token, gameName string, noOfPlayers int) (*game, error) {
 			numberOfPlayers: numberOfPlayers,
 			players:         make(map[uuid.UUID]*Player),
 			currentRound:    0,
-			totalRounds:     gameType.GetDefaultNumberOfRounds(),
+			totalRounds:     totalRounds,
 		}
 		return gameIDToGame[gameID], nil
 	}
@@ -123,7 +127,7 @@ func getNumberOfPlayers(gameType games.GameType, noOfPlayers int) (int, error) {
 }
 
 func playersToMakeMove(players map[uuid.UUID]*Player) []string {
-	var playersToMakeMove []string
+	var playersToMakeMove = make([]string, 0)
 	for _, p := range players {
 		if p.currentMove == nil {
 			playersToMakeMove = append(playersToMakeMove, p.Name)
@@ -133,7 +137,7 @@ func playersToMakeMove(players map[uuid.UUID]*Player) []string {
 }
 
 func finishRound(g *game) {
-	var moves []games.PlayerMove
+	var moves = make([]games.PlayerMove, 0)
 	for id, p := range g.players {
 		moves = append(moves, games.PlayerMove{ID: id, Move: p.currentMove})
 	}
