@@ -19,6 +19,11 @@
 			"Rev": "f395758b854c4efa789b8c1e9b73479704c548cb"
 		},
 		{
+			"ImportPath": "github.com/gorilla/websocket",
+			"Comment": "v1.2.0-44-g5ed622c",
+			"Rev": "5ed622c449da6d44c3c8329331ff47a9e5844f71"
+		},
+		{
 			"ImportPath": "github.com/pkg/errors",
 			"Comment": "v0.8.1-27-g7f95ac1",
 			"Rev": "7f95ac13edff643b8ce5398b6ccab125f8a20c1a"
