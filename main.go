@@ -17,11 +17,17 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 )
 
 func main() {
 	logger.Init("Bot Server", false, false, os.Stdout)
 	logger.Infof("Server started")
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+	if err != nil {
+		logger.Infof("Could not get port from env variables, falling back to 8080")
+		port = 8080
+	}
 
 	ConnectAPIService := web.NewConnectAPIService()
 	ConnectAPIController := web.NewConnectAPIController(ConnectAPIService)
@@ -31,5 +37,5 @@ func main() {
 
 	router := web.NewRouter(ConnectAPIController, PlayAPIController)
 
-	log.Fatal(http.ListenAndServe(":8080", router))
+	log.Fatal(http.ListenAndServe(":" + strconv.Itoa(port), router))
 }
