@@ -4,12 +4,14 @@ package core
 import (
 	"botServer/core/events"
 	"botServer/core/games"
+	"fmt"
 	"github.com/google/logger"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -42,8 +44,7 @@ func Connect(req ConnectRequest) (ConnectResponse, error) {
 	g.players[p.ID] = p
 	logger.Infof("Player with id %s joined the game with id %s", p.ID.String(), g.id.String())
 	if len(g.players) == g.numberOfPlayers {
-		g.currentRound = 1
-		go notifyStartGame(g.players, g.id, g.currentRound)
+		go tryStartGame(g)
 	}
 	return ConnectResponse{GameID: g.id, Player: *p, Rounds: g.totalRounds}, nil
 }
@@ -178,20 +179,32 @@ func finishRound(g *game) {
 
 	if isGameOver(g) {
 		logger.Infof("Game %s is over, Winner is %s, Score is %s", g.id, g.players[result.Winner].Name, scoreAsString(g.players))
-		t := ""
-		for token, gameID := range tokenToGameID {
-			if gameID == g.id {
-				t = token
-				break
-			}
-		}
-		delete(tokenToGameID, t)
-		delete(gameIDToGame, g.id)
+		removeGame(g)
 		notifyGameFinished(g, result)
 	} else {
 		logger.Infof("Winner for game %s and round %d is %s, Score is %s", g.id, oldRound, g.players[result.Winner].Name, scoreAsString(g.players))
 		notifyRoundFinished(g, oldRound, result, moves)
 	}
+}
+
+func tryStartGame(g *game) {
+	reachablePlayers, unreachablePlayers := splitReachableAndUnreachablePlayers(g.players)
+	for i := 10; i > 0; i-- {
+		if len(unreachablePlayers) == 0 {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		reachablePlayers, unreachablePlayers = splitReachableAndUnreachablePlayers(g.players)
+	}
+	if len(unreachablePlayers) > 0 {
+		logger.Warningf("Game will not start, unreachable players are: %s", strings.Join(unreachablePlayers, ", "))
+		message := fmt.Sprintf("Game will not start and you will need to reconnect, unreachable players are: %s", strings.Join(unreachablePlayers, ", "))
+		notifyError(reachablePlayers, message)
+		removeGame(g)
+		return
+	}
+	g.currentRound = 1
+	notifyStartGame(g.players, g.id, g.currentRound)
 }
 
 func notifyStartGame(players map[uuid.UUID]*Player, gameID uuid.UUID, nextRound int) {
@@ -239,6 +252,17 @@ func notifyGameFinished(g *game, result games.RoundResult) {
 	})
 }
 
+func notifyError(players map[uuid.UUID]*Player, message string) {
+	var subscribers []events.Subscriber
+	for _, player := range players {
+		subscribers = append(subscribers, events.Subscriber{
+			Callback:      player.EventCallback,
+			WebsocketConn: player.WebsocketConn,
+		})
+	}
+	events.PublishError(subscribers, message)
+}
+
 func computePlayerResults(players map[uuid.UUID]*Player, result games.RoundResult) []events.PlayerResult {
 	var playerResults []events.PlayerResult
 	for _, playerResult := range result.PlayerResults {
@@ -278,4 +302,29 @@ func isGameOver(g *game) bool {
 		}
 	}
 	return false
+}
+
+func splitReachableAndUnreachablePlayers(players map[uuid.UUID]*Player) (map[uuid.UUID]*Player, []string) {
+	reachablePlayers := make(map[uuid.UUID]*Player, 0)
+	var unreachablePlayers []string
+	for id, player := range players {
+		if (player.EventCallback == nil || !player.EventCallback.IsAbs()) && (player.WebsocketConn == nil) {
+			unreachablePlayers = append(unreachablePlayers, player.Name)
+		} else {
+			reachablePlayers[id] = player
+		}
+	}
+	return reachablePlayers, unreachablePlayers
+}
+
+func removeGame(g *game) {
+	t := ""
+	for token, gameID := range tokenToGameID {
+		if gameID == g.id {
+			t = token
+			break
+		}
+	}
+	delete(tokenToGameID, t)
+	delete(gameIDToGame, g.id)
 }

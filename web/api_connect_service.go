@@ -13,13 +13,14 @@ package web
 import (
 	"botServer/core"
 	"botServer/web/model"
+	"github.com/google/logger"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"net/url"
 )
 
-// ConnectAPIService is a service that implents the logic for the ConnectAPIServicer
+// ConnectAPIService is a service that implements the logic for the ConnectAPIServicer
 // This service should implement the business logic for every endpoint for the ConnectApi API.
 // Include any external packages or services that will be required by this service.
 type ConnectAPIService struct {
@@ -32,9 +33,6 @@ func NewConnectAPIService() ConnectAPIServicer {
 
 // HelloPost -
 func (s *ConnectAPIService) HelloPost(helloRequest model.HelloRequest) (model.HelloResponse, error) {
-	if helloRequest.EventCallback == "" {
-		return model.HelloResponse{}, errors.New("event callback URL cannot be empty")
-	}
 	callbackURL, err := url.Parse(helloRequest.EventCallback)
 	if err != nil {
 		return model.HelloResponse{}, err
@@ -72,7 +70,19 @@ func (s *ConnectAPIService) SwitchToWs(request model.SwitchToWsRequest, conn *we
 
 	err = core.RegisterWS(gameID, playerID, conn)
 	if err != nil {
+		closeWebsocket(conn)
 		return err
 	}
 	return nil
+}
+
+func closeWebsocket(conn *websocket.Conn) {
+	cm := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "game does not exist")
+	if err := conn.WriteMessage(websocket.CloseMessage, cm); err != nil {
+		logger.Error(err)
+		err = conn.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}
 }

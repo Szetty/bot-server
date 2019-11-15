@@ -109,13 +109,27 @@ func PublishGameFinished(gameFinished GameFinished) {
 	}
 }
 
-func publish(subscriber Subscriber, event model.Event) {
-	time.Sleep(time.Second)
-	if subscriber.WebsocketConn != nil {
-		publishUsingWebsocket(subscriber.WebsocketConn, event)
-		return
+// PublishError publishes the Error event
+func PublishError(subscribers []Subscriber, message string) {
+	for _, subscriber := range subscribers {
+		publish(subscriber, model.Event{
+			Type: "error",
+			Body: model.Error{
+				Message: message,
+			},
+		})
 	}
-	publishUsingHTTP(subscriber.Callback.String(), event)
+}
+
+func publish(subscriber Subscriber, event model.Event) {
+	go func() {
+		time.Sleep(time.Second)
+		if subscriber.WebsocketConn != nil {
+			publishUsingWebsocket(subscriber.WebsocketConn, event)
+			return
+		}
+		publishUsingHTTP(subscriber.Callback.String(), event)
+	}()
 }
 
 func publishUsingHTTP(callback string, event interface{}) {

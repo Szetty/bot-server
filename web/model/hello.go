@@ -16,7 +16,7 @@ type HelloRequest struct {
 	// If name is not provided, server will assign a name
 	PlayerName string `json:"playerName,omitempty"`
 	// To receive notifications from server
-	EventCallback string `json:"eventCallback"`
+	EventCallback string `json:"eventCallback,omitempty"`
 }
 
 // HelloRequestGame describes the game in the context of the hello request
