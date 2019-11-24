@@ -12,6 +12,7 @@
 package main
 
 import (
+	"botServer/core"
 	"botServer/web"
 	"github.com/google/logger"
 	"log"
@@ -37,5 +38,6 @@ func main() {
 
 	router := web.NewRouter(ConnectAPIController, PlayAPIController)
 
-	log.Fatal(http.ListenAndServe(":" + strconv.Itoa(port), router))
+	core.StartCleaner()
+	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), router))
 }

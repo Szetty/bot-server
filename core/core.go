@@ -11,13 +11,16 @@ import (
 	"github.com/pkg/errors"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 var (
-	tokenToGameID = make(map[string]uuid.UUID)
-	gameIDToGame  = make(map[uuid.UUID]*game)
-	playerNameNr  int64
+	tokenToGameID     = make(map[string]uuid.UUID)
+	tokenToGameIDLock sync.RWMutex
+	gameIDToGame      = make(map[uuid.UUID]*game)
+	gameIDToGameLock  sync.RWMutex
+	playerNameNr      int64
 )
 
 type game struct {
@@ -27,6 +30,51 @@ type game struct {
 	players         map[uuid.UUID]*Player
 	currentRound    int
 	totalRounds     int
+}
+
+// StartCleaner starts the process that cleans up unfinished games
+func StartCleaner() {
+	ticker := time.NewTicker(5 * time.Minute)
+	previousRounds := make(map[string]int)
+
+	go func() {
+		for {
+			select {
+			case t := <-ticker.C:
+				logger.Infof("Cleanup activates at %v", t)
+				var tokensToCleanup []string
+				tokenToGameIDLock.RLock()
+				gameIDToGameLock.RLock()
+				for token, gameID := range tokenToGameID {
+					game := gameIDToGame[gameID]
+					previousRound, ok := previousRounds[token]
+					if ok && game.currentRound == previousRound {
+						tokensToCleanup = append(tokensToCleanup, token)
+					}
+					if !ok {
+						previousRounds[token] = game.currentRound
+					}
+				}
+				tokenToGameIDLock.RUnlock()
+				gameIDToGameLock.RUnlock()
+
+				if len(tokensToCleanup) > 0 {
+					tokenToGameIDLock.Lock()
+					gameIDToGameLock.Lock()
+					for _, token := range tokensToCleanup {
+						delete(gameIDToGame, tokenToGameID[token])
+						delete(tokenToGameID, token)
+						delete(previousRounds, token)
+					}
+					tokenToGameIDLock.Unlock()
+					gameIDToGameLock.Unlock()
+					logger.Infof("Cleaned up tokens: %s", strings.Join(tokensToCleanup, ", "))
+				} else {
+					logger.Infof("No tokens to clean up")
+				}
+			}
+		}
+	}()
 }
 
 // Connect tries to connect a new user to a game specified by the token
@@ -50,7 +98,9 @@ func Connect(req ConnectRequest) (ConnectResponse, error) {
 }
 
 func RegisterWS(gameId, playerId uuid.UUID, conn *websocket.Conn) error {
+	gameIDToGameLock.RLock()
 	g, ok := gameIDToGame[gameId]
+	gameIDToGameLock.RUnlock()
 	if !ok {
 		err := errors.New("game id is not correct")
 		return errors.Wrap(err, "could not register ws")
@@ -66,7 +116,9 @@ func RegisterWS(gameId, playerId uuid.UUID, conn *websocket.Conn) error {
 
 // Play processes a given player's move in a given round in a specific game
 func Play(req PlayRequest) (PlayResponse, error) {
+	gameIDToGameLock.RLock()
 	g, ok := gameIDToGame[req.GameID]
+	gameIDToGameLock.RUnlock()
 	if !ok {
 		err := errors.New("game id is not correct")
 		return PlayResponse{}, errors.Wrap(err, "could not make move")
@@ -104,7 +156,9 @@ func getOrCreateGame(token, gameName string, noOfPlayers, totalRounds int) (*gam
 	if token == "" {
 		return nil, errors.New("token is empty")
 	}
+	tokenToGameIDLock.RLock()
 	gameID, ok := tokenToGameID[token]
+	tokenToGameIDLock.RUnlock()
 	if !ok {
 		gameType, err := games.NewGame(gameName)
 		if err != nil {
@@ -119,7 +173,11 @@ func getOrCreateGame(token, gameName string, noOfPlayers, totalRounds int) (*gam
 			totalRounds = gameType.GetDefaultNumberOfRounds()
 		}
 		gameID := uuid.New()
+		tokenToGameIDLock.Lock()
 		tokenToGameID[token] = gameID
+		tokenToGameIDLock.Unlock()
+		gameIDToGameLock.Lock()
+		defer gameIDToGameLock.Unlock()
 		gameIDToGame[gameID] = &game{
 			id:              gameID,
 			gameType:        gameType,
@@ -130,6 +188,8 @@ func getOrCreateGame(token, gameName string, noOfPlayers, totalRounds int) (*gam
 		}
 		return gameIDToGame[gameID], nil
 	}
+	gameIDToGameLock.RLock()
+	defer gameIDToGameLock.RUnlock()
 	return gameIDToGame[gameID], nil
 }
 
@@ -319,6 +379,7 @@ func splitReachableAndUnreachablePlayers(players map[uuid.UUID]*Player) (map[uui
 
 func removeGame(g *game) {
 	t := ""
+	tokenToGameIDLock.Lock()
 	for token, gameID := range tokenToGameID {
 		if gameID == g.id {
 			t = token
@@ -326,5 +387,8 @@ func removeGame(g *game) {
 		}
 	}
 	delete(tokenToGameID, t)
+	tokenToGameIDLock.Unlock()
+	gameIDToGameLock.Lock()
 	delete(gameIDToGame, g.id)
+	gameIDToGameLock.Unlock()
 }
